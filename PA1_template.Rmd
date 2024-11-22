@@ -1,25 +1,89 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "PA1_template.Rmd"
+output: html_document
+date: "2024-11-22"
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.path = "figure/")  # Графики будут сохраняться в папку figure/
 
-## Loading and preprocessing the data
+library(ggplot2)
 
+# Загрузка данных
+fullData <- read.csv("activity.csv")
+fullData$date <- as.Date(fullData$date, "%Y-%m-%d")
 
+# Расчет общего количества шагов по дням
+stepsPerDay <- aggregate(steps ~ date, fullData, FUN = sum)
 
-## What is mean total number of steps taken per day?
+g <- ggplot(stepsPerDay, aes(x = steps))
+g + geom_histogram(fill = "yellow", binwidth = 1000) +
+    labs(title = "Histogram of Steps Taken Each Day", x = "Steps", y = "Frequency")
 
+# Среднее количество шагов
+stepsMean <- mean(stepsPerDay$steps, na.rm = TRUE)
+stepsMean
 
+# Медианное количество шагов
+stepsMedian <- median(stepsPerDay$steps, na.rm = TRUE)
+stepsMedian
 
-## What is the average daily activity pattern?
+stepsPerInterval <- aggregate(steps ~ interval, fullData, mean)
+h <- ggplot(stepsPerInterval, aes(x = interval, y = steps))
+h + geom_line() + 
+    labs(title = "Time Series Plot of Average Steps per Interval", 
+         x = "Interval", y = "Average Steps across All Days")
 
+maxInterval <- stepsPerInterval[which.max(stepsPerInterval$steps), ] 
+maxInterval
 
+noMissingValue <- nrow(fullData[is.na(fullData$steps),])
+noMissingValue
 
-## Imputing missing values
+# Создание переменной с днями недели
+fullData1 <- read.csv("activity.csv", header=TRUE, sep=",")
+fullData1$day <- weekdays(as.Date(fullData1$date))
 
+# Среднее количество шагов по интервалам и дням недели
+stepsAvg1 <- aggregate(steps ~ interval + day, fullData1, mean)
 
+# Данные с пропущенными значениями
+nadata <- fullData1[is.na(fullData1$steps),]
 
-## Are there differences in activity patterns between weekdays and weekends?
+# Слияние данных с пропущенными значениями с расчетами среднего числа шагов по интервалам и дням
+newdata1 <- merge(nadata, stepsAvg1, by = c("interval", "day"))
+
+# Данные без пропущенных значений
+cleanData <- fullData1[!is.na(fullData1$steps),]
+
+# Перестроение данных с импутированными значениями
+newdata2 <- newdata1[, c(5,4,1,2)]
+colnames(newdata2) <- c("steps", "date", "interval", "day")
+
+# Слияние данных
+mergeData <- rbind(cleanData, newdata2)
+
+stepsPerDayFill <- aggregate(steps ~ date, mergeData, FUN = sum)
+g1 <- ggplot(stepsPerDayFill, aes(x = steps))
+g1 + geom_histogram(fill = "green", binwidth = 1000) +
+    labs(title = "Histogram of Steps Taken Each Day (Imputed Data)", x = "Steps", y = "Frequency")
+
+# Среднее количество шагов с импутированными данными
+stepsMeanFill <- mean(stepsPerDayFill$steps, na.rm = TRUE)
+stepsMeanFill
+
+# Медианное количество шагов с импутированными данными
+stepsMedianFill <- median(stepsPerDayFill$steps, na.rm = TRUE)
+stepsMedianFill
+
+mergeData$DayType <- ifelse(mergeData$day %in% c("Saturday", "Sunday"), "Weekend", "Weekday")
+
+# Среднее количество шагов по 5-минутным интервалам и типу дня
+stepsPerIntervalDT <- aggregate(steps ~ interval + DayType, mergeData, FUN = mean)
+
+j <- ggplot(stepsPerIntervalDT, aes(x = interval, y = steps))
+j + geom_line() + 
+    labs(title = "Time Series Plot of Average Steps per Interval: Weekdays vs. Weekends", 
+         x = "Interval", y = "Average Number of Steps") + 
+    facet_grid(DayType ~ .)
+
