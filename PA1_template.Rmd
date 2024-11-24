@@ -1,0 +1,96 @@
+---
+title: "PA1_template.Rmd"
+author: "Natalya"
+date: "2024-11-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#Loading and preprocessing the data
+
+```{r}
+# Load necessary packages
+library(dplyr)
+library(ggplot2)
+library(lattice)
+```
+```{r, fig.path = "figure/"}
+# Load data
+data <- read.csv("activity.csv")
+data$date <- as.Date(data$date, format="%Y-%m-%d")
+head(data)
+```
+#What is mean total number of steps taken per day?
+```{r, fig.path = "figure/"}
+# Summarize steps per day
+daily_steps <- data %>%
+  group_by(date) %>%
+  summarise(total_steps = sum(steps, na.rm = TRUE), .groups = 'drop')
+
+# Plot histogram
+ggplot(daily_steps, aes(x = total_steps)) +
+  geom_histogram(binwidth = 1000, fill = "blue", color = "black") +
+  labs(title = "Histogram of total steps per day", x = "Total steps", y = "Frequency")
+```
+```{r, fig.path = "figure/"}
+# Mean and median steps per day
+mean_steps <- mean(daily_steps$total_steps, na.rm = TRUE)
+median_steps <- median(daily_steps$total_steps, na.rm = TRUE)
+
+mean_steps
+median_steps
+```
+#What is the average daily activity pattern?
+```{r, fig.path = "figure/"}
+# Average steps per interval
+interval_steps <- data %>%
+  group_by(interval) %>%
+  summarise(mean_steps = mean(steps, na.rm = TRUE), .groups = 'drop')
+
+# Time series plot
+ggplot(interval_steps, aes(x = interval, y = mean_steps)) +
+  geom_line(color = "blue") +
+  labs(title = "Average steps per 5-minute interval", x = "Interval", y = "Average steps")
+```
+
+```{r, fig.path = "figure/"}
+# Interval with max steps
+max_interval <- interval_steps[which.max(interval_steps$mean_steps), ]
+max_interval
+```
+#Imputing missing values
+```{r, fig.path = "figure/"}
+# Total NA values
+total_na <- sum(is.na(data$steps))
+total_na
+
+# Fill missing values
+data_filled <- data %>%
+  group_by(interval) %>%
+  mutate(steps = ifelse(is.na(steps), mean(steps, na.rm = TRUE), steps), .groups = 'drop')
+
+sum(is.na(data_filled$steps))
+```
+#Are there differences in activity patterns between weekdays and weekends?
+
+```{r, fig.path = "figure/"}
+# Add day type
+data_filled <- data_filled %>%
+  mutate(day_type = ifelse(weekdays(date) %in% c("Saturday", "Sunday"), "weekend", "weekday"))
+
+# Average steps per interval by day type
+interval_steps_filled <- data_filled %>%
+  group_by(interval, day_type) %>%
+  summarise(mean_steps = mean(steps), .groups = 'drop')
+
+# Panel plot
+xyplot(mean_steps ~ interval | day_type, data = interval_steps_filled, type = "l",
+       layout = c(1, 2), xlab = "Interval", ylab = "Average steps",
+       main = "Average steps per 5-minute interval by day type")
+```
+
+
+
+
